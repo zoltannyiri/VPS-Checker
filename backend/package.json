@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "dev": "tsx server.ts"
+    "dev": "tsx src/server.ts",
+    "monitor": "tsx src/workers/monitor.worker.ts"
   },
   "dependencies": {
     "dotenv": "^18.0.9",
