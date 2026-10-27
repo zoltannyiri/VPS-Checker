@@ -31,6 +31,14 @@ const monitors: MonitorConfig[] = [
     healthUrl: "http://217.13.105.132:3000/api/health",
     intervalMinutes: 0.25,
   },
+  {
+    id: "turazzvelunk",
+    name: "Turazzvelunk",
+    host: "217.13.104.241",
+    port: 5000,
+    healthUrl: "http://217.13.104.241:5000/api/health",
+    intervalMinutes: 0.25,
+  },
 ];
 
 const states = new Map<string, MonitorState>();
