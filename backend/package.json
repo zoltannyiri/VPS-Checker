@@ -1,7 +1,9 @@
 {
+  "type": "module",
   "scripts": {
     "dev": "tsx src/server.ts",
-    "monitor": "tsx src/workers/monitor.worker.ts"
+    "test": "tsx --test src/storage.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^18.0.9",

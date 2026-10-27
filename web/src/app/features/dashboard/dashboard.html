@@ -1,0 +1,245 @@
+<main class="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+  <div
+    class="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_top_left,rgba(8,145,178,0.14),transparent_42%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.1),transparent_38%)]"
+  ></div>
+
+  <div class="relative mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8">
+    <header class="mb-9 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-center gap-4">
+        <div
+          class="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-lg shadow-cyan-950/30"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="h-6 w-6 text-cyan-300"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          >
+            <path d="M3 12h4l2.2-6 4.2 12 2-6H21" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              VPS Checker
+            </h1>
+            <span
+              class="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300"
+              >Live</span
+            >
+          </div>
+          <p class="mt-1 text-sm text-slate-500">Infrastructure health &amp; availability</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="inline-flex rounded-xl border border-slate-800 bg-slate-900/80 p-1">
+          @for (period of periodOptions; track period.value) {
+            <button
+              type="button"
+              class="rounded-lg px-3 py-2 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+              [class.bg-slate-700]="selectedPeriod() === period.value"
+              [class.text-white]="selectedPeriod() === period.value"
+              [class.text-slate-500]="selectedPeriod() !== period.value"
+              (click)="setPeriod(period.value)"
+            >
+              {{ period.label }}
+            </button>
+          }
+        </div>
+        <button
+          type="button"
+          class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/15 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+          [disabled]="loading()"
+          (click)="refresh()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="h-4 w-4"
+            [class.animate-spin]="loading()"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M20 12a8 8 0 1 1-2.3-5.7M20 4v6h-6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          {{ loading() ? 'Szinkronizálás' : 'Frissítés' }}
+        </button>
+      </div>
+    </header>
+
+    <div class="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500">
+      <span class="inline-flex items-center gap-2">
+        <span
+          class="h-2 w-2 rounded-full"
+          [class.bg-emerald-400]="backendConnected() === true"
+          [class.shadow-[0_0_10px_rgba(52,211,153,0.7)]]="backendConnected() === true"
+          [class.bg-rose-400]="backendConnected() === false"
+          [class.bg-slate-600]="backendConnected() === null"
+        ></span>
+        {{
+          backendConnected() === true
+            ? 'Monitoring backend online'
+            : backendConnected() === false
+              ? 'Monitoring backend offline'
+              : 'Kapcsolódás…'
+        }}
+      </span>
+      @if (lastSynchronizedAt(); as synchronizedAt) {
+        <span>Szinkronizálva: {{ synchronizedAt.toLocaleTimeString() }}</span>
+      }
+      @if (overview(); as currentOverview) {
+        <span>{{ currentOverview.sampleCount }} valós mérési pont az időszakban</span>
+      }
+    </div>
+
+    @if (errorMessage(); as error) {
+      <div
+        class="mb-6 flex items-start gap-3 rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-sm text-rose-200"
+        role="alert"
+      >
+        <span class="mt-0.5 text-rose-400">●</span>
+        <div>
+          <p class="font-medium">A monitoring backend nem érhető el</p>
+          <p class="mt-1 text-rose-300/70">{{ error }}</p>
+        </div>
+      </div>
+    }
+
+    <section
+      class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      aria-label="Monitoring áttekintés"
+    >
+      <app-stat-card
+        title="Összes monitor"
+        [value]="totalCount()"
+        icon="servers"
+        color="blue"
+        description="Aktív konfigurációk"
+      />
+      <app-stat-card
+        title="Online"
+        [value]="onlineCount()"
+        icon="online"
+        color="green"
+        description="Sikeres API health"
+      />
+      <app-stat-card
+        title="Figyelmeztetés"
+        [value]="degradedCount()"
+        icon="warning"
+        color="yellow"
+        description="Átmeneti API hiba"
+      />
+      <app-stat-card
+        title="Offline"
+        [value]="offlineCount()"
+        icon="offline"
+        color="red"
+        description="Legalább 3 egymást követő hiba"
+      />
+      <app-stat-card
+        title="Rendelkezésre állás"
+        [value]="formatPercentage(overview()?.uptimePercentage)"
+        icon="uptime"
+        color="green"
+        [description]="selectedPeriod() + ' megfigyelt HTTP health adataiból'"
+      />
+      <app-stat-card
+        title="Átlagos API válaszidő"
+        [value]="formatMilliseconds(overview()?.averageApiResponseTimeMs)"
+        icon="latency"
+        color="blue"
+        description="Csak mért válaszidők"
+      />
+      <app-stat-card
+        title="Nyitott incidensek"
+        [value]="overview()?.openIncidentCount ?? '—'"
+        icon="incident"
+        color="red"
+        description="Jelenleg DOWN állapotú szolgáltatások"
+      />
+    </section>
+
+    <section
+      class="mb-6 rounded-2xl border border-slate-800/90 bg-slate-900/55 p-4 backdrop-blur"
+      aria-label="Monitor szűrők"
+    >
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-[1fr_14rem]">
+        <label class="relative">
+          <span class="sr-only">Keresés VPS név vagy IP-cím alapján</span>
+          <svg
+            viewBox="0 0 24 24"
+            class="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-600"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-4-4" stroke-linecap="round" />
+          </svg>
+          <input
+            type="search"
+            class="w-full rounded-xl border border-slate-800 bg-slate-950/70 py-2.5 pl-10 pr-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/10"
+            placeholder="Keresés név vagy IP-cím alapján…"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+        </label>
+        <label>
+          <span class="sr-only">Szűrés státusz szerint</span>
+          <select
+            class="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/10"
+            [ngModel]="statusFilter()"
+            (ngModelChange)="setStatusFilter($event)"
+          >
+            <option value="ALL">Minden státusz</option>
+            <option value="UP">Online</option>
+            <option value="DEGRADED">Figyelmeztetés</option>
+            <option value="DOWN">Offline</option>
+            <option value="UNKNOWN">Még nem ellenőrzött</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    @if (loading() && monitors().length === 0) {
+      <section class="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="Betöltés">
+        @for (item of [1, 2]; track item) {
+          <div class="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <div class="h-5 w-40 rounded bg-slate-800"></div>
+            <div class="mt-3 h-3 w-28 rounded bg-slate-800/70"></div>
+            <div class="mt-6 grid grid-cols-3 gap-3">
+              <div class="h-24 rounded-xl bg-slate-800/60"></div>
+              <div class="h-24 rounded-xl bg-slate-800/60"></div>
+              <div class="h-24 rounded-xl bg-slate-800/60"></div>
+            </div>
+            <div class="mt-5 h-8 rounded bg-slate-800/60"></div>
+          </div>
+        }
+      </section>
+    } @else {
+      <section class="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="VPS monitorok">
+        @for (monitor of filteredMonitors(); track monitor.id) {
+          <app-monitor-card [monitor]="monitor" />
+        } @empty {
+          <div
+            class="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-12 text-center lg:col-span-2"
+          >
+            <p class="font-medium text-slate-300">Nincs megjeleníthető monitor</p>
+            <p class="mt-2 text-sm text-slate-600">Módosítsd a keresést vagy a státuszszűrőt.</p>
+          </div>
+        }
+      </section>
+    }
+
+    <footer class="mt-10 border-t border-slate-900 py-6 text-center text-xs text-slate-700">
+      A frontend 15 másodpercenként a legutóbb eltárolt mérési eredményeket szinkronizálja.
+    </footer>
+  </div>
+</main>

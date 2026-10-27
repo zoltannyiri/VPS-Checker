@@ -1,0 +1,17 @@
+@if (checks().length > 0) {
+  <div class="flex h-8 items-stretch gap-1" aria-label="Legutóbbi ellenőrzések idővonala">
+    @for (check of checks(); track check.checkedAt) {
+      <span
+        class="min-w-1 flex-1 rounded-sm opacity-85 transition hover:scale-y-110 hover:opacity-100"
+        [class]="segmentClass(check.status)"
+        [attr.title]="label(check.status) + ' · ' + formatDate(check.checkedAt)"
+      ></span>
+    }
+  </div>
+} @else {
+  <div
+    class="flex h-8 items-center justify-center rounded-md border border-dashed border-slate-700 text-xs text-slate-500"
+  >
+    Még nincs történeti adat
+  </div>
+}

@@ -1,0 +1,291 @@
+<main class="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+  <div
+    class="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_top,rgba(8,145,178,0.12),transparent_48%)]"
+  ></div>
+
+  <div class="relative mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8">
+    <nav class="mb-7 flex items-center justify-between gap-4">
+      <a
+        routerLink="/"
+        class="inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+      >
+        <span aria-hidden="true">←</span> Dashboard
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="inline-flex rounded-xl border border-slate-800 bg-slate-900/80 p-1">
+          @for (period of periodOptions; track period.value) {
+            <button
+              type="button"
+              class="rounded-lg px-3 py-2 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+              [class.bg-slate-700]="selectedPeriod() === period.value"
+              [class.text-white]="selectedPeriod() === period.value"
+              [class.text-slate-500]="selectedPeriod() !== period.value"
+              (click)="setPeriod(period.value)"
+            >
+              {{ period.label }}
+            </button>
+          }
+        </div>
+        <button
+          type="button"
+          class="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-300 transition hover:bg-cyan-400/15 disabled:opacity-50"
+          [disabled]="loading()"
+          (click)="refresh()"
+          aria-label="Adatok frissítése"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="h-4 w-4"
+            [class.animate-spin]="loading()"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M20 12a8 8 0 1 1-2.3-5.7M20 4v6h-6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    @if (errorMessage(); as error) {
+      <div
+        class="mb-6 rounded-2xl border border-rose-900/60 bg-rose-950/30 p-4 text-sm text-rose-200"
+        role="alert"
+      >
+        {{ error }}
+      </div>
+    }
+
+    @if (loading() && !monitor()) {
+      <div class="animate-pulse space-y-6">
+        <div class="h-36 rounded-2xl border border-slate-800 bg-slate-900/60"></div>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          @for (item of [1, 2, 3, 4, 5]; track item) {
+            <div class="h-28 rounded-2xl bg-slate-900/60"></div>
+          }
+        </div>
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div class="h-80 rounded-2xl bg-slate-900/60"></div>
+          <div class="h-80 rounded-2xl bg-slate-900/60"></div>
+        </div>
+      </div>
+    } @else if (monitor(); as currentMonitor) {
+      <header
+        class="mb-6 rounded-2xl border border-slate-800/90 bg-slate-900/65 p-6 shadow-2xl shadow-black/10 backdrop-blur"
+      >
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-3">
+              <h1 class="text-3xl font-semibold tracking-tight text-white">
+                {{ currentMonitor.name }}
+              </h1>
+              <span
+                class="rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset"
+                [class]="statusClass(currentMonitor.status)"
+              >
+                {{ statusLabel(currentMonitor.status) }}
+              </span>
+              @if (currentMonitor.isStale) {
+                <span
+                  class="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300 ring-1 ring-amber-500/30"
+                  >Elavult mérés</span
+                >
+              }
+            </div>
+            <p class="mt-2 font-mono text-sm text-slate-500">
+              {{ currentMonitor.host }}:{{ currentMonitor.port }}
+            </p>
+          </div>
+          <dl class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+            <div>
+              <dt class="text-xs text-slate-600">Utolsó ellenőrzés</dt>
+              <dd class="mt-1 text-slate-300">{{ formatDate(currentMonitor.lastCheckedAt) }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs text-slate-600">Utolsó siker</dt>
+              <dd class="mt-1 text-slate-300">
+                {{ formatDate(currentMonitor.lastSuccessfulAt) }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </header>
+
+      <section class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs text-slate-500">Uptime</p>
+          <p class="mt-2 text-2xl font-semibold text-emerald-300">
+            {{ formatPercentage(stats()?.uptimePercentage) }}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs text-slate-500">Átlag API</p>
+          <p class="mt-2 text-2xl font-semibold text-cyan-300">
+            {{ formatMs(stats()?.averageApiResponseTimeMs) }}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs text-slate-500">Átlag ICMP</p>
+          <p class="mt-2 text-2xl font-semibold text-blue-300">
+            {{ formatMs(stats()?.averagePingLatencyMs) }}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs text-slate-500">Átlag TCP</p>
+          <p class="mt-2 text-2xl font-semibold text-violet-300">
+            {{ formatMs(stats()?.averageTcpConnectTimeMs) }}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs text-slate-500">Mérési pontok</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ stats()?.sampleCount ?? 0 }}</p>
+        </div>
+      </section>
+
+      <section
+        class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3"
+        aria-label="Aktuális health eredmények"
+      >
+        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-medium text-slate-300">ICMP ping</h2>
+            <span
+              class="h-2.5 w-2.5 rounded-full"
+              [class.bg-emerald-400]="currentMonitor.ping === true"
+              [class.bg-rose-400]="currentMonitor.ping === false"
+              [class.bg-slate-600]="currentMonitor.ping === null"
+            ></span>
+          </div>
+          <p class="mt-4 text-2xl font-semibold text-white">
+            {{ formatMs(currentMonitor.pingLatencyMs) }}
+          </p>
+          <p class="mt-1 text-sm text-slate-500">{{ availability(currentMonitor.ping) }}</p>
+        </article>
+        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-medium text-slate-300">TCP kapcsolat</h2>
+            <span
+              class="h-2.5 w-2.5 rounded-full"
+              [class.bg-emerald-400]="currentMonitor.tcp === true"
+              [class.bg-rose-400]="currentMonitor.tcp === false"
+              [class.bg-slate-600]="currentMonitor.tcp === null"
+            ></span>
+          </div>
+          <p class="mt-4 text-2xl font-semibold text-white">
+            {{ formatMs(currentMonitor.tcpConnectTimeMs) }}
+          </p>
+          <p class="mt-1 text-sm text-slate-500">{{ availability(currentMonitor.tcp) }}</p>
+        </article>
+        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <div class="flex items-center justify-between">
+            <h2 class="font-medium text-slate-300">HTTP health</h2>
+            <span
+              class="h-2.5 w-2.5 rounded-full"
+              [class.bg-emerald-400]="currentMonitor.api.online === true"
+              [class.bg-rose-400]="currentMonitor.api.online === false"
+              [class.bg-slate-600]="currentMonitor.api.online === null"
+            ></span>
+          </div>
+          <p class="mt-4 text-2xl font-semibold text-white">
+            {{ formatMs(currentMonitor.api.responseTimeMs) }}
+          </p>
+          <p class="mt-1 text-sm text-slate-500">
+            HTTP {{ currentMonitor.api.httpStatus ?? '—' }} ·
+            {{ availability(currentMonitor.api.online) }}
+          </p>
+        </article>
+      </section>
+
+      @if (stats(); as currentStats) {
+        <p
+          class="mb-6 rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-xs text-slate-500"
+        >
+          <span class="font-medium text-slate-400">Uptime számítás:</span>
+          {{ currentStats.methodology }} Hiányzó mérések nem számítanak bele.
+        </p>
+      }
+
+      <section class="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <app-response-time-chart
+          class="xl:col-span-2"
+          title="API response time"
+          [points]="apiChartPoints()"
+          color="cyan"
+        />
+        <app-response-time-chart title="ICMP latency" [points]="pingChartPoints()" color="blue" />
+        <app-response-time-chart
+          title="TCP connection time"
+          [points]="tcpChartPoints()"
+          color="violet"
+        />
+      </section>
+
+      <div class="mb-6">
+        <app-incident-list [incidents]="incidents()" />
+      </div>
+
+      <section class="overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/60">
+        <div class="border-b border-slate-800 px-5 py-4">
+          <h2 class="text-lg font-semibold text-white">Ellenőrzési előzmények</h2>
+          <p class="mt-1 text-sm text-slate-500">A legutóbbi 50 eltárolt eredmény</p>
+        </div>
+        @if (recentHistory().length > 0) {
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[900px] text-left text-sm">
+              <thead class="bg-slate-950/50 text-xs uppercase tracking-wider text-slate-600">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Időpont</th>
+                  <th class="px-5 py-3 font-medium">Státusz</th>
+                  <th class="px-5 py-3 font-medium">ICMP</th>
+                  <th class="px-5 py-3 font-medium">TCP</th>
+                  <th class="px-5 py-3 font-medium">API</th>
+                  <th class="px-5 py-3 font-medium">HTTP</th>
+                  <th class="px-5 py-3 font-medium">Hiba</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/70">
+                @for (point of recentHistory(); track point.checkedAt) {
+                  <tr class="transition hover:bg-slate-800/20">
+                    <td class="whitespace-nowrap px-5 py-3 text-slate-400">
+                      {{ formatDate(point.checkedAt) }}
+                    </td>
+                    <td class="px-5 py-3">
+                      <span
+                        class="rounded-full px-2 py-1 text-xs ring-1 ring-inset"
+                        [class]="statusClass(point.status)"
+                        >{{ statusLabel(point.status) }}</span
+                      >
+                    </td>
+                    <td class="px-5 py-3 font-mono text-slate-300">
+                      {{ formatMs(point.pingLatencyMs) }}
+                    </td>
+                    <td class="px-5 py-3 font-mono text-slate-300">
+                      {{ formatMs(point.tcpConnectTimeMs) }}
+                    </td>
+                    <td class="px-5 py-3 font-mono text-slate-300">
+                      {{ formatMs(point.apiResponseTimeMs) }}
+                    </td>
+                    <td class="px-5 py-3 font-mono text-slate-400">
+                      {{ point.httpStatus ?? '—' }}
+                    </td>
+                    <td class="max-w-64 truncate px-5 py-3 text-rose-300">
+                      {{ point.error ?? '—' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="p-10 text-center text-sm text-slate-500">
+            Nincs eltárolt ellenőrzés ebben az időszakban.
+          </div>
+        }
+      </section>
+    }
+  </div>
+</main>

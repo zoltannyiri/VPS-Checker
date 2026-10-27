@@ -1,0 +1,120 @@
+<article
+  class="group h-full rounded-2xl border border-slate-800/90 bg-slate-900/70 p-5 shadow-2xl shadow-black/10 transition duration-300 hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-cyan-950/20"
+>
+  <header class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <span
+          class="h-2.5 w-2.5 shrink-0 rounded-full"
+          [class.bg-emerald-400]="monitor().status === 'UP' && !monitor().isStale"
+          [class.bg-amber-400]="monitor().status === 'DEGRADED' || monitor().isStale"
+          [class.bg-rose-500]="monitor().status === 'DOWN'"
+          [class.bg-slate-500]="monitor().status === 'UNKNOWN'"
+        ></span>
+        <h2 class="truncate text-lg font-semibold text-white">{{ monitor().name }}</h2>
+      </div>
+      <p class="mt-1.5 font-mono text-xs text-slate-500">
+        {{ monitor().host }} <span class="text-slate-700">/</span> TCP {{ monitor().port }}
+      </p>
+    </div>
+    <div class="flex flex-col items-end gap-2">
+      <span
+        class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset"
+        [class]="statusClasses()"
+      >
+        {{ statusLabel() }}
+      </span>
+      @if (monitor().isStale) {
+        <span class="text-[11px] font-medium text-amber-300">Elavult adat</span>
+      }
+    </div>
+  </header>
+
+  <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="rounded-xl border border-slate-800 bg-slate-950/55 p-3.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium uppercase tracking-wider text-slate-500">ICMP</span>
+        <span
+          class="h-2 w-2 rounded-full"
+          [class.bg-emerald-400]="monitor().ping === true"
+          [class.bg-rose-400]="monitor().ping === false"
+          [class.bg-slate-600]="monitor().ping === null"
+        ></span>
+      </div>
+      <p class="mt-2 text-sm font-medium text-slate-200">{{ availabilityLabel(monitor().ping) }}</p>
+      <p class="mt-1 font-mono text-xs text-slate-500">{{ metric(monitor().pingLatencyMs) }}</p>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-950/55 p-3.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium uppercase tracking-wider text-slate-500">TCP</span>
+        <span
+          class="h-2 w-2 rounded-full"
+          [class.bg-emerald-400]="monitor().tcp === true"
+          [class.bg-rose-400]="monitor().tcp === false"
+          [class.bg-slate-600]="monitor().tcp === null"
+        ></span>
+      </div>
+      <p class="mt-2 text-sm font-medium text-slate-200">{{ availabilityLabel(monitor().tcp) }}</p>
+      <p class="mt-1 font-mono text-xs text-slate-500">{{ metric(monitor().tcpConnectTimeMs) }}</p>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-950/55 p-3.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium uppercase tracking-wider text-slate-500">HTTP API</span>
+        <span
+          class="h-2 w-2 rounded-full"
+          [class.bg-emerald-400]="monitor().api.online === true"
+          [class.bg-rose-400]="monitor().api.online === false"
+          [class.bg-slate-600]="monitor().api.online === null"
+        ></span>
+      </div>
+      <p class="mt-2 text-sm font-medium text-slate-200">
+        {{ monitor().api.httpStatus ?? availabilityLabel(monitor().api.online) }}
+      </p>
+      <p class="mt-1 font-mono text-xs text-slate-500">
+        {{ metric(monitor().api.responseTimeMs) }}
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-5">
+    <div class="mb-2 flex items-center justify-between">
+      <span class="text-xs font-medium uppercase tracking-wider text-slate-500"
+        >Uptime timeline</span
+      >
+      <span class="text-[11px] text-slate-600">{{ monitor().recentChecks.length }} mérés</span>
+    </div>
+    <app-uptime-timeline [checks]="monitor().recentChecks" />
+  </div>
+
+  <dl class="mt-5 grid grid-cols-2 gap-x-5 gap-y-3 border-t border-slate-800/80 pt-4 text-xs">
+    <div>
+      <dt class="text-slate-600">Utolsó siker</dt>
+      <dd class="mt-1 text-slate-300">{{ formatLastChecked(monitor().lastSuccessfulAt) }}</dd>
+    </div>
+    <div>
+      <dt class="text-slate-600">Utolsó ellenőrzés</dt>
+      <dd class="mt-1 text-slate-300">{{ formatLastChecked(monitor().lastCheckedAt) }}</dd>
+    </div>
+    <div>
+      <dt class="text-slate-600">Hibaszámláló</dt>
+      <dd class="mt-1 font-mono text-slate-300">{{ monitor().consecutiveFailures }}</dd>
+    </div>
+    <div class="flex items-end justify-end">
+      <a
+        class="inline-flex items-center gap-1.5 font-medium text-cyan-300 transition hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+        [routerLink]="['/monitors', monitor().id]"
+      >
+        Részletek
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </dl>
+
+  @if (monitor().api.error; as apiError) {
+    <div class="mt-4 rounded-xl border border-rose-900/60 bg-rose-950/30 p-3 text-xs text-rose-200">
+      <span class="font-semibold">API hiba:</span> {{ apiError }}
+    </div>
+  }
+</article>
