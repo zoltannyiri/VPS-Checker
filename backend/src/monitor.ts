@@ -7,6 +7,7 @@ import {
   MonitorView,
 } from "./models.js";
 import { monitorStorage } from "./storage.js";
+import "dotenv/config";
 
 interface PingResult {
   online: boolean;
@@ -26,17 +27,25 @@ const monitors: MonitorConfig[] = [
   {
     id: "portfolio",
     name: "Portfolio",
-    host: "217.13.105.132",
+    host: process.env.PORTFOLIO_HOST!,
     port: 3000,
-    healthUrl: "http://217.13.105.132:3000/api/health",
+    healthUrl: process.env.PORTFOLIO_HEALTH_URL!,
     intervalMinutes: 0.25,
   },
   {
     id: "turazzvelunk",
     name: "Turazzvelunk",
-    host: "217.13.104.241",
+    host: process.env.TURAZZVELUNK_HOST!,
     port: 5000,
-    healthUrl: "http://217.13.104.241:5000/api/health",
+    healthUrl: process.env.TURAZZVELUNK_HEALTH_URL!,
+    intervalMinutes: 0.25,
+  },
+  {
+    id: "spendfox",
+    name: "Spendfox",
+    host: process.env.SPENDFOX_HOST!,
+    port: 5000,
+    healthUrl: process.env.SPENDFOX_HEALTH_URL!,
     intervalMinutes: 0.25,
   },
 ];
