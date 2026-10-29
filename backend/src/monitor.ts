@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { sendMail } from "./mailer.js";
+import { sendMonitorAlert } from "./alert-email.js";
 import { createConnection } from "node:net";
 import {
   ApiStatus,
@@ -19,7 +21,7 @@ interface TcpResult {
   connectTimeMs: number | null;
 }
 
-const FAILURE_THRESHOLD = 3;
+const FAILURE_THRESHOLD = 1; // ennyi sikertelen próbálkozás után küld emailt
 const TIMEOUT_MS = 10_000;
 const RECENT_CHECK_LIMIT = 24;
 
@@ -30,7 +32,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.PORTFOLIO_HOST!,
     port: 3000,
     healthUrl: process.env.PORTFOLIO_HEALTH_URL!,
-    intervalMinutes: 5,
+    intervalMinutes: 0.25,
   },
   {
     id: "turazzvelunk",
@@ -38,7 +40,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.TURAZZVELUNK_HOST!,
     port: 5000,
     healthUrl: process.env.TURAZZVELUNK_HEALTH_URL!,
-    intervalMinutes: 5,
+    intervalMinutes: 0.25,
   },
   {
     id: "spendfox",
@@ -46,7 +48,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.SPENDFOX_HOST!,
     port: 5000,
     healthUrl: process.env.SPENDFOX_HEALTH_URL!,
-    intervalMinutes: 5,
+    intervalMinutes: 0.25,
   },
 ];
 
@@ -194,9 +196,36 @@ async function checkHealth(url: string): Promise<ApiStatus> {
   }
 }
 
+
 async function notify(message: string): Promise<void> {
   console.log(`[NOTIFICATION] ${message}`);
+
+  const recipient = process.env.ALERT_EMAIL_TO;
+
+  if (!recipient) {
+    console.warn("[EMAIL] Nincs beállítva ALERT_EMAIL_TO.");
+    return;
+  }
+
+  const isDown = message.startsWith("🚨");
+
+  const subject = isDown
+    ? "VPS-Checker | Szolgáltatás leállt"
+    : "VPS-Checker | Szolgáltatás helyreállt";
+
+  try {
+    await sendMail({
+      to: recipient,
+      subject,
+      text: message,
+    });
+
+    console.log(`[EMAIL] Sikeres küldés: ${recipient}`);
+  } catch (error) {
+    console.error("[EMAIL] Küldési hiba:", error);
+  }
 }
+
 
 async function checkMonitor(monitor: MonitorConfig): Promise<void> {
   if (running.has(monitor.id)) return;
@@ -221,33 +250,68 @@ async function checkMonitor(monitor: MonitorConfig): Promise<void> {
     state.api = api;
     state.lastCheckedAt = checkedAt;
 
+        
     const previousStatus = state.status;
+
+    let pendingAlert: {
+      kind: "DOWN" | "RECOVERED";
+      startedAt: string | null;
+      error: string | null;
+    } | null = null;
+
     if (api.online) {
       state.status = "UP";
       state.consecutiveFailures = 0;
       state.lastSuccessfulAt = checkedAt;
 
       if (previousStatus === "DOWN") {
+        const openIncident = monitorStorage
+          .getIncidents("30d", monitor.id)
+          .find((incident) => incident.endedAt === null);
+
         monitorStorage.closeIncident(monitor.id, checkedAt);
-        await notify(`✅ ${monitor.name} API helyreállt!`);
+
+        pendingAlert = {
+          kind: "RECOVERED",
+          startedAt: openIncident?.startedAt ?? null,
+          error: openIncident?.error ?? null,
+        };
       }
     } else {
       state.consecutiveFailures++;
 
       state.status =
-        state.consecutiveFailures >= FAILURE_THRESHOLD ? "DOWN" : "DEGRADED";
+        state.consecutiveFailures >= FAILURE_THRESHOLD
+          ? "DOWN"
+          : "DEGRADED";
 
       if (state.status === "DOWN" && previousStatus !== "DOWN") {
-        monitorStorage.openIncident(monitor.id, checkedAt, api.error);
-        await notify(
-          `🚨 ${monitor.name} API nem elérhető!\n${api.error ?? "Unknown error"}`,
+        monitorStorage.openIncident(
+          monitor.id,
+          checkedAt,
+          api.error,
         );
+
+        pendingAlert = {
+          kind: "DOWN",
+          startedAt: checkedAt,
+          error: api.error,
+        };
       }
     }
 
     state.recentChecks.push({ checkedAt, status: state.status });
     state.recentChecks = state.recentChecks.slice(-RECENT_CHECK_LIMIT);
     monitorStorage.recordCheck(state);
+
+    if (pendingAlert) {
+      await sendMonitorAlert({
+        ...pendingAlert,
+        monitor,
+        state,
+        detectedAt: checkedAt,
+      });
+    }
 
     console.log(`\n[${monitor.name}]`);
     console.log(
