@@ -30,7 +30,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.PORTFOLIO_HOST!,
     port: 3000,
     healthUrl: process.env.PORTFOLIO_HEALTH_URL!,
-    intervalMinutes: 0.25,
+    intervalMinutes: 5,
   },
   {
     id: "turazzvelunk",
@@ -38,7 +38,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.TURAZZVELUNK_HOST!,
     port: 5000,
     healthUrl: process.env.TURAZZVELUNK_HEALTH_URL!,
-    intervalMinutes: 0.25,
+    intervalMinutes: 5,
   },
   {
     id: "spendfox",
@@ -46,7 +46,7 @@ const monitors: MonitorConfig[] = [
     host: process.env.SPENDFOX_HOST!,
     port: 5000,
     healthUrl: process.env.SPENDFOX_HEALTH_URL!,
-    intervalMinutes: 0.25,
+    intervalMinutes: 5,
   },
 ];
 
