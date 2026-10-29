@@ -3,9 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import { getMonitorStatuses, hasMonitor, startMonitoring } from "./monitor.js";
 import { HistoryPeriod } from "./models.js";
 import { monitorStorage } from "./storage.js";
+import "dotenv/config"
 
 const app = express();
-const PORT = 5001;
+const PORT = Number(process.env.PORT ?? 5002);
 const API_KEY = process.env["API_KEY"];
 
 app.use(express.json());
