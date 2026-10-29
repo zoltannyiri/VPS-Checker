@@ -79,7 +79,7 @@ export class Dashboard {
   );
 
   constructor() {
-    merge(timer(0, 15_000), this.manualRefresh)
+    merge(timer(0, 60_000), this.manualRefresh)
       .pipe(
         exhaustMap(() =>
           defer(() => {
@@ -142,7 +142,7 @@ export class Dashboard {
   private describeError(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
-        return 'A backend nem érhető el. Ellenőrizd, hogy fut-e az 5001-es porton.';
+        return 'A backend nem érhető el.';
       }
       return `A monitoradatok lekérése sikertelen (HTTP ${error.status}).`;
     }
