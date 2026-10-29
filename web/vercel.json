@@ -1,0 +1,26 @@
+
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/monitors",
+      "destination": "/api/proxy?route=monitors"
+    },
+    {
+      "source": "/api/overview",
+      "destination": "/api/proxy?route=overview"
+    },
+    {
+      "source": "/api/incidents",
+      "destination": "/api/proxy?route=incidents"
+    },
+    {
+      "source": "/api/monitors/:id/history",
+      "destination": "/api/proxy?route=history&id=:id"
+    },
+    {
+      "source": "/api/monitors/:id/stats",
+      "destination": "/api/proxy?route=stats&id=:id"
+    }
+  ]
+}
