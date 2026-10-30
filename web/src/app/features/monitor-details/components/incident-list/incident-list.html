@@ -1,36 +1,89 @@
+
 <section class="rounded-2xl border border-slate-800/90 bg-slate-900/70 p-5">
   <div class="mb-4">
     <h2 class="text-lg font-semibold text-white">Incidensek</h2>
-    <p class="mt-1 text-sm text-slate-500">A DOWN állapotba került időszakok</p>
+    <p class="mt-1 text-sm text-slate-500">
+      Leállások, helyreállások és hibadiagnosztika
+    </p>
   </div>
 
-  @if (incidents().length > 0) {
+  @if (displayIncidents().length > 0) {
     <div class="space-y-3">
-      @for (incident of incidents(); track incident.id) {
+      @for (incident of displayIncidents(); track incident.id) {
         <article class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="font-medium text-slate-200">
-                {{ incident.endedAt ? 'Lezárt incidens' : 'Folyamatban lévő incidens' }}
+                {{
+                  incident.endedAt
+                    ? 'Lezárt incidens'
+                    : 'Folyamatban lévő incidens'
+                }}
               </p>
+
               <p class="mt-1 text-xs text-slate-500">
-                {{ formatDate(incident.startedAt) }} –
-                {{ incident.endedAt ? formatDate(incident.endedAt) : 'jelenleg' }}
+                {{ formatDate(incident.startedAt) }}
+                –
+                {{
+                  incident.endedAt
+                    ? formatDate(incident.endedAt)
+                    : 'jelenleg'
+                }}
               </p>
             </div>
+
             <span
               class="rounded-full px-2.5 py-1 text-xs font-medium"
               [class.bg-rose-500/10]="!incident.endedAt"
               [class.text-rose-300]="!incident.endedAt"
-              [class.bg-slate-800]="!!incident.endedAt"
-              [class.text-slate-300]="!!incident.endedAt"
+              [class.bg-emerald-500/10]="!!incident.endedAt"
+              [class.text-emerald-300]="!!incident.endedAt"
             >
               {{ duration(incident) }}
             </span>
           </div>
-          @if (incident.error) {
-            <p class="mt-3 text-sm text-rose-300">{{ incident.error }}</p>
+
+          @if (incident.observedError) {
+            <div class="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+              <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-rose-400">
+                Észlelt hiba / lehetséges ok
+              </p>
+              <p class="whitespace-pre-line break-words text-sm leading-relaxed text-rose-200">
+                {{ incident.observedError }}
+              </p>
+            </div>
           }
+
+          @if (incident.sshLines.length > 0) {
+            <details class="group mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-medium text-cyan-300"
+              >
+                <span>SSH-diagnosztika részletei</span>
+                <span class="transition-transform group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+
+              <div class="border-t border-cyan-500/15 px-3 py-4">
+                <div class="space-y-2">
+                  @for (line of incident.sshLines; track $index) {
+                    <p class="break-words text-sm leading-relaxed text-slate-300">
+                      {{ line }}
+                    </p>
+                  }
+                </div>
+
+                <p class="mt-4 border-t border-slate-800 pt-3 text-xs text-slate-500">
+                  A diagnosztika a leállás észlelésekor készült.
+                  Az adatok önmagukban nem feltétlenül bizonyítják
+                  a hiba kiváltó okát.
+                </p>
+              </div>
+            </details>
+          }
+
         </article>
       }
     </div>

@@ -66,6 +66,37 @@ function escapeHtml(value: string): string {
   });
 }
 
+
+function splitDiagnosticMessage(error: string | null): {
+  summary: string;
+  ssh: string | null;
+} {
+  const value = (error ?? '')
+    .replace(/\r\n/g, '\n')
+    .trim();
+
+  if (!value) {
+    return { summary: 'Nem ismert', ssh: null };
+  }
+
+  const sections = value.split(/\n[ \t]*\n/);
+
+  const sshIndex = sections.findIndex((section) =>
+    /^(SSH-diagnosztika|Az SSH-diagnosztika)\b/i.test(
+      section.trim(),
+    ),
+  );
+
+  if (sshIndex === -1) {
+    return { summary: value, ssh: null };
+  }
+
+  return {
+    summary: sections.slice(0, sshIndex).join('\n\n').trim(),
+    ssh: sections.slice(sshIndex).join('\n\n').trim(),
+  };
+}
+
 export async function sendMonitorAlert({
   kind,
   monitor,
@@ -105,6 +136,8 @@ export async function sendMonitorAlert({
     ? `🚨 VPS-Checker | ${monitor.name} leállt`
     : `✅ VPS-Checker | ${monitor.name} helyreállt`;
 
+  const diagnosis = splitDiagnosticMessage(error);
+
   const rows: Array<[string, string]> = [
     ["Szolgáltatás", monitor.name],
     ["Host / IP", monitor.host],
@@ -121,18 +154,35 @@ export async function sendMonitorAlert({
     ],
   ];
 
+  
   if (isDown) {
-    rows.push(
-      ["Hiba oka", error || "Ismeretlen hiba"],
-      ["Leállás észlelve", formatDate(detectedAt)],
-    );
+    rows.push([
+      "Észlelt hiba / lehetséges ok",
+      diagnosis.summary,
+    ]);
+
+    if (diagnosis.ssh) {
+      rows.push(["SSH-diagnosztika", diagnosis.ssh]);
+    }
+
+    rows.push([
+      "Leállás észlelve",
+      formatDate(detectedAt),
+    ]);
   } else {
     rows.push(
       ["Leállás észlelve", formatDate(startedAt)],
       ["Helyreállás észlelve", formatDate(detectedAt)],
       ["Megfigyelt kiesés", formatDuration(startedAt, detectedAt)],
-      ["Korábbi hiba", error || "Nem ismert"],
+      ["Korábbi hiba / lehetséges ok", diagnosis.summary],
     );
+
+    if (diagnosis.ssh) {
+      rows.push([
+        "Korábbi SSH-diagnosztika",
+        diagnosis.ssh,
+      ]);
+    }
   }
 
   const htmlRows = rows
@@ -152,7 +202,7 @@ export async function sendMonitorAlert({
             color:#0f172a;
             font-weight:600;
             overflow-wrap:anywhere;
-          ">${escapeHtml(value)}</td>
+          ">${escapeHtml(value).replace(/\n/g, "<br>")}</td>
         </tr>
       `,
     )

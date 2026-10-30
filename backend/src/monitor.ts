@@ -10,6 +10,7 @@ import {
 } from "./models.js";
 import { monitorStorage } from "./storage.js";
 import "dotenv/config";
+import { runSshDiagnostics } from "./ssh-diagnostics.js";
 
 interface PingResult {
   online: boolean;
@@ -286,16 +287,24 @@ async function checkMonitor(monitor: MonitorConfig): Promise<void> {
           : "DEGRADED";
 
       if (state.status === "DOWN" && previousStatus !== "DOWN") {
+        const basicDiagnosis = diagnoseFailure(monitor, ping, tcp, api);
+        const sshDiagnosis = await runSshDiagnostics(monitor.id);
+
+        const diagnosis = [
+          basicDiagnosis,
+          sshDiagnosis,
+        ].filter(Boolean).join("\n\n");
+
         monitorStorage.openIncident(
           monitor.id,
           checkedAt,
-          api.error,
+          diagnosis,
         );
 
         pendingAlert = {
           kind: "DOWN",
           startedAt: checkedAt,
-          error: api.error,
+          error: diagnosis,
         };
       }
     }
@@ -327,6 +336,81 @@ async function checkMonitor(monitor: MonitorConfig): Promise<void> {
     running.delete(monitor.id);
   }
 }
+
+
+function diagnoseFailure( monitor: MonitorConfig, ping: PingResult, tcp: TcpResult, api: ApiStatus ): string {
+  const detail = api.error ?? "Ismeretlen HTTP-hiba";
+
+  if (!ping.online && !tcp.online) {
+    return (
+      "A szerver nem válaszol ICMP pingre, és a " +
+      `${monitor.port}-es TCP-port sem érhető el. ` +
+      "Lehetséges hálózati hiba, VPS-leállás vagy tűzfalszabály. " +
+      `HTTP: ${detail}. A pontos ok még nem bizonyított.`
+    );
+  }
+
+  if (ping.online && !tcp.online) {
+    return (
+      "A VPS pingre válaszol, de a " +
+      `${monitor.port}-es TCP-port nem elérhető. ` +
+      "Lehetséges leállt alkalmazás, nem figyelő port vagy tűzfalhiba. " +
+      `HTTP: ${detail}.`
+    );
+  }
+
+  if (api.httpStatus === 502) {
+    return (
+      "HTTP 502 Bad Gateway. A HTTP-kiszolgáló vagy proxy " +
+      "nem kapott megfelelő választ a háttérszolgáltatástól. " +
+      "Lehetséges upstream-, alkalmazás- vagy proxyhiba. " +
+      "A pontos okhoz Nginx- és alkalmazásnapló szükséges."
+    );
+  }
+
+  if (api.httpStatus === 503) {
+    return (
+      "HTTP 503 Service Unavailable. A szolgáltatás jelenleg " +
+      "nem tudja kiszolgálni a kérést. Lehetséges túlterhelés, " +
+      "karbantartás vagy nem elérhető upstream."
+    );
+  }
+
+  if (api.httpStatus !== null && api.httpStatus >= 500) {
+    return (
+      `HTTP ${api.httpStatus}: szerveroldali hiba. ` +
+      "A pontos ok az alkalmazás- vagy proxynaplókból állapítható meg."
+    );
+  }
+
+  if (api.httpStatus === 404) {
+    return (
+      "HTTP 404: a health endpoint nem található. " +
+      "Lehetséges hibás útvonal, deployment vagy proxykonfiguráció."
+    );
+  }
+
+  if (api.httpStatus !== null && api.httpStatus >= 400) {
+    return (
+      `HTTP ${api.httpStatus}: a health endpoint hibával válaszolt. ` +
+      `Részlet: ${detail}.`
+    );
+  }
+
+  if (tcp.online && api.httpStatus === null) {
+    return (
+      "A TCP-port elérhető, de HTTP-válasz nem érkezett. " +
+      "Lehetséges timeout, TLS-, DNS- vagy alkalmazáshiba. " +
+      `Részlet: ${detail}.`
+    );
+  }
+
+  return (
+    `A health ellenőrzés sikertelen: ${detail}. ` +
+    "A pontos hibaok további naplóvizsgálatot igényel."
+  );
+}
+
 
 export function getMonitorStatuses(): MonitorView[] {
   return monitors.map((monitor) => {
